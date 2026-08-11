@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON → Tabela</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2026;
+    --border: #2a2d35;
+    --accent: #00e5a0;
+    --accent2: #0099ff;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --header-bg: #12141a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px; font-weight: 500;
+    color: #000;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  header span {
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: 4px;
+    font-weight: 300;
+  }
+
+  .badge {
+    margin-left: auto;
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.3);
+    color: var(--accent);
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+    height: calc(100vh - 65px);
+  }
+
+  /* LEFT PANEL */
+  .left-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+  }
+
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: #00ffb3; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #a8d8b8;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 16px 20px;
+    resize: none;
+    overflow-y: auto;
+  }
+
+  textarea::placeholder { color: #3a3f4a; }
+
+  .input-actions {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .json-path-hint {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .toolbar {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .search-box input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 7px 12px 7px 32px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-box input:focus { border-color: var(--accent); }
+  .search-box::before {
+    content: '⌕';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 16px;
+    pointer-events: none;
+  }
+
+  .stats {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
+
+  .stats strong { color: var(--accent); }
+
+  .col-toggle-wrap {
+    position: relative;
+  }
+
+  .col-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 12px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .col-toggle-btn:hover { border-color: var(--muted); }
+
+  .col-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    z-index: 100;
+    min-width: 180px;
+    max-height: 280px;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .col-dropdown.open { display: block; }
+
+  .col-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.1s;
+  }
+  .col-item:hover { background: var(--border); }
+  .col-item input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; }
+
+  .export-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 12px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .export-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .table-wrap {
+    flex: 1;
+    overflow: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  thead th {
+    background: var(--surface2);
+    border-bottom: 2px solid var(--border);
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  thead th:hover { color: var(--text); }
+  thead th.sorted { color: var(--accent); }
+  thead th .sort-icon { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+  thead th.sorted .sort-icon { opacity: 1; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    animation: fadeRow 0.2s ease both;
+  }
+  tbody tr:hover { background: var(--surface2); }
+
+  @keyframes fadeRow {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  td {
+    padding: 10px 16px;
+    color: var(--text);
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  td.number-cell {
+    font-family: 'DM Mono', monospace;
+    color: var(--accent2);
+    font-size: 12px;
+  }
+
+  td.bool-cell { font-family: 'DM Mono', monospace; font-size: 12px; }
+  td.bool-true { color: var(--accent); }
+  td.bool-false { color: #ff6b6b; }
+
+  td.null-cell { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; font-style: italic; }
+
+  td.date-cell { font-family: 'DM Mono', monospace; color: #c084fc; font-size: 12px; }
+
+  .row-num {
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 10px 8px 10px 16px;
+    width: 40px;
+  }
+
+  .highlight { background: rgba(0,229,160,0.2); border-radius: 2px; color: var(--accent); }
+
+  /* Empty / error states */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted);
+    padding: 60px;
+  }
+  .empty-icon { font-size: 48px; opacity: 0.3; }
+  .empty-title { font-size: 16px; font-weight: 500; color: var(--text); opacity: 0.5; }
+  .empty-sub { font-size: 13px; text-align: center; max-width: 300px; line-height: 1.6; }
+
+  .error-bar {
+    display: none;
+    background: rgba(255,80,80,0.1);
+    border: 1px solid rgba(255,80,80,0.3);
+    color: #ff8080;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    padding: 10px 20px;
+    margin: 0;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* Path selector */
+  .path-selector {
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .path-selector label { white-space: nowrap; }
+  .path-selector input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    outline: none;
+    flex: 1;
+  }
+  .path-selector input:focus { border-color: var(--accent2); }
+  .path-selector button {
+    background: var(--border);
+    border: none;
+    color: var(--text);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .path-selector button:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">{ }</div>
+  <h1>JSON Viewer <span>→ tabela</span></h1>
+  <div class="badge">v1.0</div>
+</header>
+
+<main>
+  <!-- LEFT: JSON input -->
+  <div class="left-panel">
+    <div class="panel-header">
+      <span class="panel-title">JSON Input</span>
+    </div>
+    <textarea id="jsonInput" placeholder='Cole seu JSON aqui...
+
+Exemplos suportados:
+[ { "nome": "...", ... }, ... ]
+{ "results": [ ... ] }
+{ "data": { "items": [ ... ] } }'></textarea>
+    <div class="path-selector">
+      <label>Caminho:</label>
+      <input id="jsonPath" type="text" placeholder='ex: results  ou  data.items' />
+      <button onclick="parseJSON()">↵</button>
+    </div>
+    <div class="input-actions">
+      <button class="btn btn-ghost" onclick="clearAll()">Limpar</button>
+      <button class="btn btn-ghost" onclick="loadSample()">Exemplo</button>
+      <button class="btn btn-primary" onclick="parseJSON()">Gerar tabela →</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Table output -->
+  <div class="right-panel" id="rightPanel">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">⊞</div>
+      <div class="empty-title">Nenhum dado carregado</div>
+      <div class="empty-sub">Cole um JSON no painel esquerdo e clique em "Gerar tabela" para visualizar os dados.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+let allData = [];
+let columns = [];
+let visibleColumns = new Set();
+let sortCol = null;
+let sortDir = 1;
+let searchTerm = '';
+let searchTimer;
+
+function getNestedValue(obj, path) {
+  if (!path || !path.trim()) return obj;
+  return path.trim().split('.').reduce((acc, key) => {
+    if (acc === null || acc === undefined) return undefined;
+    return acc[key];
+  }, obj);
+}
+
+function flattenObject(obj, prefix = '', depth = 0) {
+  if (depth > 3) return { [prefix]: JSON.stringify(obj) };
+  let result = {};
+  for (let key in obj) {
+    const val = obj[key];
+    const newKey = prefix ? `${prefix}.${key}` : key;
+    if (val !== null && typeof val === 'object' && !Array.isArray(val) && depth < 2) {
+      const nested = flattenObject(val, newKey, depth + 1);
+      Object.assign(result, nested);
+    } else if (Array.isArray(val)) {
+      result[newKey] = val.map(v => typeof v === 'object' ? JSON.stringify(v) : v).join(', ');
+    } else {
+      result[newKey] = val;
+    }
+  }
+  return result;
+}
+
+function detectArrayPath(data) {
+  if (Array.isArray(data)) return '';
+  if (typeof data === 'object' && data !== null) {
+    for (let key in data) {
+      if (Array.isArray(data[key])) return key;
+      if (typeof data[key] === 'object') {
+        for (let k2 in data[key]) {
+          if (Array.isArray(data[key][k2])) return `${key}.${k2}`;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function parseJSON() {
+  const raw = document.getElementById('jsonInput').value.trim();
+  if (!raw) return;
+
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch (e) {
+    showError('JSON inválido: ' + e.message);
+    return;
+  }
+
+  hideError();
+
+  let path = document.getElementById('jsonPath').value.trim();
+  
+  // Auto-detect array path if not provided
+  if (!path) {
+    const detected = detectArrayPath(parsed);
+    if (detected === null) {
+      showError('Não foi encontrado um array no JSON. Informe o caminho manualmente.');
+      return;
+    }
+    path = detected;
+    document.getElementById('jsonPath').value = path;
+  }
+
+  let arr = getNestedValue(parsed, path);
+  if (!Array.isArray(arr)) {
+    showError(`O caminho "${path}" não aponta para um array. Tente outro caminho.`);
+    return;
+  }
+
+  // Flatten objects
+  allData = arr.map(item => typeof item === 'object' && item !== null ? flattenObject(item) : { value: item });
+
+  // Collect columns (union of all keys, ordered by frequency)
+  const colCount = {};
+  allData.forEach(row => {
+    Object.keys(row).forEach(k => { colCount[k] = (colCount[k] || 0) + 1; });
+  });
+  columns = Object.keys(colCount).sort((a, b) => colCount[b] - colCount[a]);
+
+  // Show top columns by default (max 12)
+  visibleColumns = new Set(columns.slice(0, 12));
+  
+  sortCol = null;
+  searchTerm = '';
+  document.querySelector('.search-box input') && (document.querySelector('.search-box input').value = '');
+
+  renderTable();
+}
+
+function renderTable() {
+  const right = document.getElementById('rightPanel');
+  const filtered = getFilteredData();
+
+  const visCols = columns.filter(c => visibleColumns.has(c));
+
+  right.innerHTML = `
+    <div class="error-bar" id="errorBar"></div>
+    <div class="toolbar">
+      <div class="search-box">
+        <input type="text" placeholder="Buscar em todos os campos..." value="${searchTerm}" 
+          oninput="onSearch(this.value)" />
+      </div>
+      <div class="stats"><strong>${filtered.length}</strong> / ${allData.length} linhas · <strong>${visCols.length}</strong> colunas</div>
+      <div class="col-toggle-wrap">
+        <button class="col-toggle-btn" onclick="toggleColDropdown()">
+          ⊟ Colunas <span id="colCount">(${visCols.length})</span>
+        </button>
+        <div class="col-dropdown" id="colDropdown">
+          ${columns.map(c => `
+            <label class="col-item">
+              <input type="checkbox" ${visibleColumns.has(c) ? 'checked' : ''} onchange="toggleCol('${c}', this.checked)" />
+              <span>${c}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+      <button class="export-btn" onclick="exportCSV()">↓ CSV</button>
+    </div>
+    <div class="table-wrap">
+      ${filtered.length === 0 ? `
+        <div class="empty-state">
+          <div class="empty-icon">∅</div>
+          <div class="empty-title">Sem resultados</div>
+          <div class="empty-sub">Nenhum dado corresponde à busca "${searchTerm}".</div>
+        </div>` : `
+      <table>
+        <thead>
+          <tr>
+            <th class="row-num">#</th>
+            ${visCols.map(c => `
+              <th class="${sortCol === c ? 'sorted' : ''}" onclick="sortBy('${c}')">
+                ${c} <span class="sort-icon">${sortCol === c ? (sortDir === 1 ? '↑' : '↓') : '↕'}</span>
+              </th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map((row, i) => `
+            <tr style="animation-delay:${Math.min(i * 8, 200)}ms">
+              <td class="row-num">${i + 1}</td>
+              ${visCols.map(c => renderCell(row[c])).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function isDateLike(val) {
+  if (typeof val === 'number') {
+    const s = String(Math.abs(Math.trunc(val)));
+    return s.length === 10 || s.length === 13;
+  }
+  if (typeof val === 'string') {
+    return /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/.test(val.trim());
+  }
+  return false;
+}
+
+function formatDate(val) {
+  let d, hasTime;
+  if (typeof val === 'number') {
+    d = new Date(String(Math.trunc(val)).length === 10 ? val * 1000 : val);
+    hasTime = true;
+  } else {
+    d = new Date(val);
+    hasTime = val.includes('T');
+  }
+  if (isNaN(d.getTime())) return String(val);
+  return hasTime
+    ? d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+
+function renderCell(val) {
+  if (val === null || val === undefined) return `<td class="null-cell">null</td>`;
+  if (typeof val === 'boolean') return `<td class="bool-cell ${val ? 'bool-true' : 'bool-false'}">${val}</td>`;
+  if (typeof val === 'number') {
+    if (isDateLike(val)) {
+      const fmt = formatDate(val);
+      return `<td class="date-cell" title="${val}">${fmt}</td>`;
+    }
+    return `<td class="number-cell">${val}</td>`;
+  }
+
+  if (isDateLike(val)) {
+    const raw = String(val);
+    let display = formatDate(val);
+    if (searchTerm) {
+      const idx = display.toLowerCase().indexOf(searchTerm.toLowerCase());
+      if (idx !== -1) {
+        display = display.substring(0, idx)
+          + `<span class="highlight">${display.substring(idx, idx + searchTerm.length)}</span>`
+          + display.substring(idx + searchTerm.length);
+      }
+    }
+    return `<td class="date-cell" title="${raw}">${display}</td>`;
+  }
+
+  let str = String(val);
+  if (searchTerm) {
+    const idx = str.toLowerCase().indexOf(searchTerm.toLowerCase());
+    if (idx !== -1) {
+      str = str.substring(0, idx) 
+        + `<span class="highlight">${str.substring(idx, idx + searchTerm.length)}</span>`
+        + str.substring(idx + searchTerm.length);
+    }
+  }
+  return `<td title="${String(val).replace(/"/g, '&quot;')}">${str}</td>`;
+}
+
+function getFilteredData() {
+  let data = [...allData];
+  
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase();
+    data = data.filter(row => 
+      Object.values(row).some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q))
+    );
+  }
+  
+  if (sortCol) {
+    data.sort((a, b) => {
+      const va = a[sortCol] ?? '';
+      const vb = b[sortCol] ?? '';
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sortDir;
+      return String(va).localeCompare(String(vb), 'pt-BR') * sortDir;
+    });
+  }
+  
+  return data;
+}
+
+function onSearch(val) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchTerm = val;
+    renderTable();
+  }, 200);
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  renderTable();
+}
+
+function toggleCol(col, checked) {
+  if (checked) visibleColumns.add(col);
+  else visibleColumns.delete(col);
+  document.getElementById('colCount').textContent = `(${visibleColumns.size})`;
+  renderTable();
+}
+
+function toggleColDropdown() {
+  document.getElementById('colDropdown').classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.col-toggle-wrap')) {
+    document.getElementById('colDropdown') && document.getElementById('colDropdown').classList.remove('open');
+  }
+});
+
+function exportCSV() {
+  const visCols = columns.filter(c => visibleColumns.has(c));
+  const rows = getFilteredData();
+  const lines = [
+    visCols.join(','),
+    ...rows.map(r => visCols.map(c => {
+      const v = r[c] ?? '';
+      return `"${String(v).replace(/"/g, '""')}"`;
+    }).join(','))
+  ];
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'dados.csv'; a.click();
+}
+
+function clearAll() {
+  document.getElementById('jsonInput').value = '';
+  document.getElementById('jsonPath').value = '';
+  allData = []; columns = []; visibleColumns = new Set();
+  document.getElementById('rightPanel').innerHTML = `
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">⊞</div>
+      <div class="empty-title">Nenhum dado carregado</div>
+      <div class="empty-sub">Cole um JSON no painel esquerdo e clique em "Gerar tabela" para visualizar os dados.</div>
+    </div>`;
+}
+
+function showError(msg) {
+  let bar = document.getElementById('errorBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'errorBar'; bar.className = 'error-bar';
+    document.getElementById('rightPanel').prepend(bar);
+  }
+  bar.textContent = '⚠ ' + msg;
+  bar.style.display = 'block';
+}
+
+function hideError() {
+  const bar = document.getElementById('errorBar');
+  if (bar) bar.style.display = 'none';
+}
+
+function loadSample() {
+  document.getElementById('jsonInput').value = JSON.stringify({
+    "results": [
+      { "id": 1, "nome": "Loja São Paulo", "cidade": "São Paulo", "estado": "SP", "ativo": true, "abertura": "09:00" },
+      { "id": 2, "nome": "Loja Rio de Janeiro", "cidade": "Rio de Janeiro", "estado": "RJ", "ativo": true, "abertura": "10:00" },
+      { "id": 3, "nome": "Loja Curitiba", "cidade": "Curitiba", "estado": "PR", "ativo": false, "abertura": "09:00" },
+      { "id": 4, "nome": "Loja Belo Horizonte", "cidade": "Belo Horizonte", "estado": "MG", "ativo": true, "abertura": "08:30" }
+    ]
+  }, null, 2);
+  document.getElementById('jsonPath').value = '';
+  parseJSON();
+}
+
+// Parse on Ctrl+Enter
+document.getElementById('jsonInput').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') parseJSON();
+});
+</script>
+</body>
+</html>
