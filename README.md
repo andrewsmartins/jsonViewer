@@ -43,7 +43,8 @@ Qualquer outro formato funciona desde que exista um array de objetos em algum po
 
 - Renderiza a tabela inteira de uma vez, sem virtualização: JSONs muito grandes (dezenas de milhares de linhas) deixam a página lenta.
 - O achatamento para em 3 níveis de profundidade; estruturas mais fundas viram string JSON na célula.
-- Ferramenta de uso local. Como a tabela é montada via `innerHTML`, não cole JSON de origem não confiável.
+- Datas são exibidas no fuso horário local do navegador; um timestamp Unix visto em máquinas com fusos diferentes mostra horas diferentes.
+- A exportação CSV não neutraliza fórmulas: um valor que começa com `=`, `+`, `-` ou `@` é interpretado como fórmula ao abrir o arquivo no Excel.
 
 ## Stack
 

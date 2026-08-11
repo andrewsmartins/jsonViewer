@@ -489,6 +489,35 @@ let sortDir = 1;
 let searchTerm = '';
 let searchTimer;
 
+/**
+ * Escapa os caracteres com significado em HTML.
+ * Precisa ser aplicado a TODO valor vindo do JSON colado antes de entrar em innerHTML:
+ * sem isso, um campo como `<img src=x onerror=...>` executa script na origem da página.
+ */
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Escapa o texto e envolve a ocorrência do termo buscado em <span class="highlight">.
+ * O índice é localizado no texto cru e cada pedaço é escapado separadamente — escapar
+ * antes deslocaria a marcação, porque as entidades mudam o comprimento da string.
+ */
+function highlightMatch(text, term) {
+  const str = String(text);
+  if (!term) return escapeHtml(str);
+  const idx = str.toLowerCase().indexOf(term.toLowerCase());
+  if (idx === -1) return escapeHtml(str);
+  return escapeHtml(str.substring(0, idx))
+    + `<span class="highlight">${escapeHtml(str.substring(idx, idx + term.length))}</span>`
+    + escapeHtml(str.substring(idx + term.length));
+}
+
 function getNestedValue(obj, path) {
   if (!path || !path.trim()) return obj;
   return path.trim().split('.').reduce((acc, key) => {
@@ -592,7 +621,7 @@ function renderTable() {
     <div class="error-bar" id="errorBar"></div>
     <div class="toolbar">
       <div class="search-box">
-        <input type="text" placeholder="Buscar em todos os campos..." value="${searchTerm}" 
+        <input type="text" placeholder="Buscar em todos os campos..." value="${escapeHtml(searchTerm)}"
           oninput="onSearch(this.value)" />
       </div>
       <div class="stats"><strong>${filtered.length}</strong> / ${allData.length} linhas · <strong>${visCols.length}</strong> colunas</div>
@@ -601,10 +630,10 @@ function renderTable() {
           ⊟ Colunas <span id="colCount">(${visCols.length})</span>
         </button>
         <div class="col-dropdown" id="colDropdown">
-          ${columns.map(c => `
+          ${columns.map((c, i) => `
             <label class="col-item">
-              <input type="checkbox" ${visibleColumns.has(c) ? 'checked' : ''} onchange="toggleCol('${c}', this.checked)" />
-              <span>${c}</span>
+              <input type="checkbox" ${visibleColumns.has(c) ? 'checked' : ''} onchange="toggleCol(${i}, this.checked)" />
+              <span>${escapeHtml(c)}</span>
             </label>
           `).join('')}
         </div>
@@ -616,15 +645,15 @@ function renderTable() {
         <div class="empty-state">
           <div class="empty-icon">∅</div>
           <div class="empty-title">Sem resultados</div>
-          <div class="empty-sub">Nenhum dado corresponde à busca "${searchTerm}".</div>
+          <div class="empty-sub">Nenhum dado corresponde à busca "${escapeHtml(searchTerm)}".</div>
         </div>` : `
       <table>
         <thead>
           <tr>
             <th class="row-num">#</th>
             ${visCols.map(c => `
-              <th class="${sortCol === c ? 'sorted' : ''}" onclick="sortBy('${c}')">
-                ${c} <span class="sort-icon">${sortCol === c ? (sortDir === 1 ? '↑' : '↓') : '↕'}</span>
+              <th class="${sortCol === c ? 'sorted' : ''}" onclick="sortBy(${columns.indexOf(c)})">
+                ${escapeHtml(c)} <span class="sort-icon">${sortCol === c ? (sortDir === 1 ? '↑' : '↓') : '↕'}</span>
               </th>`).join('')}
           </tr>
         </thead>
@@ -670,38 +699,15 @@ function formatDate(val) {
 function renderCell(val) {
   if (val === null || val === undefined) return `<td class="null-cell">null</td>`;
   if (typeof val === 'boolean') return `<td class="bool-cell ${val ? 'bool-true' : 'bool-false'}">${val}</td>`;
-  if (typeof val === 'number') {
-    if (isDateLike(val)) {
-      const fmt = formatDate(val);
-      return `<td class="date-cell" title="${val}">${fmt}</td>`;
-    }
+  if (typeof val === 'number' && !isDateLike(val)) {
     return `<td class="number-cell">${val}</td>`;
   }
 
   if (isDateLike(val)) {
-    const raw = String(val);
-    let display = formatDate(val);
-    if (searchTerm) {
-      const idx = display.toLowerCase().indexOf(searchTerm.toLowerCase());
-      if (idx !== -1) {
-        display = display.substring(0, idx)
-          + `<span class="highlight">${display.substring(idx, idx + searchTerm.length)}</span>`
-          + display.substring(idx + searchTerm.length);
-      }
-    }
-    return `<td class="date-cell" title="${raw}">${display}</td>`;
+    return `<td class="date-cell" title="${escapeHtml(val)}">${highlightMatch(formatDate(val), searchTerm)}</td>`;
   }
 
-  let str = String(val);
-  if (searchTerm) {
-    const idx = str.toLowerCase().indexOf(searchTerm.toLowerCase());
-    if (idx !== -1) {
-      str = str.substring(0, idx) 
-        + `<span class="highlight">${str.substring(idx, idx + searchTerm.length)}</span>`
-        + str.substring(idx + searchTerm.length);
-    }
-  }
-  return `<td title="${String(val).replace(/"/g, '&quot;')}">${str}</td>`;
+  return `<td title="${escapeHtml(val)}">${highlightMatch(val, searchTerm)}</td>`;
 }
 
 function getFilteredData() {
@@ -734,13 +740,19 @@ function onSearch(val) {
   }, 200);
 }
 
-function sortBy(col) {
+// sortBy/toggleCol recebem o ÍNDICE da coluna, não o nome: o nome vem das chaves do JSON
+// colado e, interpolado dentro do atributo onclick, permitiria injeção de código.
+function sortBy(colIndex) {
+  const col = columns[colIndex];
+  if (col === undefined) return;
   if (sortCol === col) sortDir *= -1;
   else { sortCol = col; sortDir = 1; }
   renderTable();
 }
 
-function toggleCol(col, checked) {
+function toggleCol(colIndex, checked) {
+  const col = columns[colIndex];
+  if (col === undefined) return;
   if (checked) visibleColumns.add(col);
   else visibleColumns.delete(col);
   document.getElementById('colCount').textContent = `(${visibleColumns.size})`;
