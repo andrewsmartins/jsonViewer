@@ -43,8 +43,8 @@ Qualquer outro formato funciona desde que exista um array de objetos em algum po
 
 - Renderiza a tabela inteira de uma vez, sem virtualização: JSONs muito grandes (dezenas de milhares de linhas) deixam a página lenta.
 - O achatamento para em 3 níveis de profundidade; estruturas mais fundas viram string JSON na célula.
-- Datas são exibidas no fuso horário local do navegador; um timestamp Unix visto em máquinas com fusos diferentes mostra horas diferentes.
-- A exportação CSV não neutraliza fórmulas: um valor que começa com `=`, `+`, `-` ou `@` é interpretado como fórmula ao abrir o arquivo no Excel.
+- Valores que representam um **instante** (ISO com `Z`/offset, ou timestamp Unix) são convertidos para o fuso do navegador — que é o comportamento desejado, mas significa que a mesma linha mostra horas diferentes em máquinas de fusos diferentes. O fuso usado aparece no `title` da célula. Datas puras (`2026-08-11`) não sofrem conversão nenhuma.
+- Na exportação CSV, um valor de texto começando com `=`, `+`, `-`, `@`, tab ou CR recebe um apóstrofo (`'`) na frente, para que o Excel não o execute como fórmula. Números negativos são preservados como número.
 
 ## Stack
 
